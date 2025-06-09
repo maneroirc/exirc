@@ -7,6 +7,7 @@ defmodule ExIRC.Channels do
   import String, only: [downcase: 1]
 
   defmodule Channel do
+    @moduledoc false
     defstruct name: ~c"",
               topic: ~c"",
               users: [],
@@ -17,7 +18,7 @@ defmodule ExIRC.Channels do
   @doc """
   Initialize a new Channels data store
   """
-  def init() do
+  def init do
     :gb_trees.empty()
   end
 
@@ -146,9 +147,10 @@ defmodule ExIRC.Channels do
   """
   def user_rename(channel_tree, nick, new_nick) do
     manipfn = fn channel_nicks ->
-      case Enum.member?(channel_nicks, nick) do
-        true -> [new_nick | channel_nicks -- [nick]] |> Enum.uniq() |> Enum.sort()
-        false -> channel_nicks
+      if Enum.member?(channel_nicks, nick) do
+        [new_nick | channel_nicks -- [nick]] |> Enum.uniq() |> Enum.sort()
+      else
+        channel_nicks
       end
     end
 
@@ -168,8 +170,8 @@ defmodule ExIRC.Channels do
   Get a list of all currently tracked channels
   """
   def channels(channel_tree) do
-    for({channel_name, _chan} <- :gb_trees.to_list(channel_tree), do: channel_name)
-    |> Enum.reverse()
+    for_result = for({channel_name, _chan} <- :gb_trees.to_list(channel_tree), do: channel_name)
+    Enum.reverse(for_result)
   end
 
   @doc """
@@ -219,10 +221,12 @@ defmodule ExIRC.Channels do
       [{"#testchannel", [users: ["userA", "userB"], topic: "Just a test channel.", type: :public] }]
   """
   def to_proplist(channel_tree) do
-    for {channel_name, chan} <- :gb_trees.to_list(channel_tree) do
-      {channel_name, [users: chan.users, topic: chan.topic, type: chan.type]}
-    end
-    |> Enum.reverse()
+    for_result =
+      for {channel_name, chan} <- :gb_trees.to_list(channel_tree) do
+        {channel_name, [users: chan.users, topic: chan.topic, type: chan.type]}
+      end
+
+    Enum.reverse(for_result)
   end
 
   ####################
@@ -242,8 +246,7 @@ defmodule ExIRC.Channels do
   end
 
   defp trim_rank(nicks) do
-    nicks
-    |> Enum.map(fn n ->
+    Enum.map(nicks, fn n ->
       case n do
         <<"@", nick::binary>> -> nick
         <<"+", nick::binary>> -> nick

@@ -2,6 +2,8 @@ defmodule ExIRC.Utils do
   ######################
   # IRC Message Parsing
   ######################
+  @moduledoc false
+  alias ExIRC.Client.ClientState
 
   @doc """
   Parse an IRC message
@@ -50,13 +52,11 @@ defmodule ExIRC.Utils do
   end
 
   # Parse command from message
-  defp get_cmd([cmd, arg1, [?:, 1 | ctcp_trail] | restargs], msg)
-       when cmd == ~c"PRIVMSG" or cmd == ~c"NOTICE" do
+  defp get_cmd([cmd, arg1, [?:, 1 | ctcp_trail] | restargs], msg) when cmd == ~c"PRIVMSG" or cmd == ~c"NOTICE" do
     get_cmd([cmd, arg1, [1 | ctcp_trail] | restargs], msg)
   end
 
-  defp get_cmd([cmd, target, [1 | ctcp_cmd] | cmd_args], msg)
-       when cmd == ~c"PRIVMSG" or cmd == ~c"NOTICE" do
+  defp get_cmd([cmd, target, [1 | ctcp_cmd] | cmd_args], msg) when cmd == ~c"PRIVMSG" or cmd == ~c"NOTICE" do
     args =
       cmd_args
       |> Enum.map(&Enum.take_while(&1, fn c -> c != 0o001 end))
@@ -67,7 +67,7 @@ defmodule ExIRC.Utils do
         %{
           msg
           | cmd: to_string(ctcp_cmd),
-            args: [to_string(target), args |> Enum.join(" ")],
+            args: [to_string(target), Enum.join(args, " ")],
             ctcp: true
         }
 
@@ -89,9 +89,10 @@ defmodule ExIRC.Utils do
       |> Enum.map(&trim_crlf/1)
       |> Enum.map(&:binary.list_to_bin/1)
       |> Enum.map(fn s ->
-        case String.valid?(s) do
-          true -> :unicode.characters_to_binary(s)
-          false -> :unicode.characters_to_binary(s, :latin1, :unicode)
+        if String.valid?(s) do
+          :unicode.characters_to_binary(s)
+        else
+          :unicode.characters_to_binary(s, :latin1, :unicode)
         end
       end)
 
@@ -99,7 +100,8 @@ defmodule ExIRC.Utils do
   end
 
   defp get_args([[?: | first_arg] | rest], msg) do
-    args = for(arg <- [first_arg | rest], do: ~c" " ++ trim_crlf(arg)) |> List.flatten()
+    for_result = for(arg <- [first_arg | rest], do: ~c" " ++ trim_crlf(arg))
+    args = List.flatten(for_result)
 
     case args do
       [_] ->
@@ -133,20 +135,18 @@ defmodule ExIRC.Utils do
   If an empty list is provided, do nothing, otherwise parse CHANTYPES,
   NETWORK, and PREFIX parameters for relevant data.
   """
-  @spec isup(parameters :: list(binary), state :: ExIRC.Client.ClientState.t()) ::
-          ExIRC.Client.ClientState.t()
+  @spec isup(parameters :: list(binary), state :: ClientState.t()) ::
+          ClientState.t()
   def isup([], state), do: state
 
   def isup([param | rest], state) do
-    try do
-      isup(rest, isup_param(param, state))
-    rescue
-      _ -> isup(rest, state)
-    end
+    isup(rest, isup_param(param, state))
+  rescue
+    _ -> isup(rest, state)
   end
 
   defp isup_param("CHANTYPES=" <> channel_prefixes, state) do
-    prefixes = channel_prefixes |> String.split("", trim: true)
+    prefixes = String.split(channel_prefixes, "", trim: true)
     %{state | channel_prefixes: prefixes}
   end
 
@@ -156,9 +156,10 @@ defmodule ExIRC.Utils do
 
   defp isup_param("PREFIX=" <> user_prefixes, state) do
     prefixes =
-      Regex.run(~r/\((.*)\)(.*)/, user_prefixes, capture: :all_but_first)
+      ~r/\((.*)\)(.*)/
+      |> Regex.run(user_prefixes, capture: :all_but_first)
       |> Enum.map(&String.to_charlist/1)
-      |> List.zip()
+      |> Enum.zip()
 
     %{state | user_prefixes: prefixes}
   end

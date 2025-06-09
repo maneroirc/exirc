@@ -1,4 +1,5 @@
 defmodule ExIRC.Message do
+  @moduledoc false
   defstruct server: ~c"",
             nick: ~c"",
             user: ~c"",

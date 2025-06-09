@@ -4,22 +4,22 @@ defmodule ExIRC.ChannelsTest do
   alias ExIRC.Channels, as: Channels
 
   test "Joining a channel adds it to the tree of currently joined channels" do
-    channels = Channels.init() |> Channels.join("#testchannel") |> Channels.channels
+    channels = Channels.init() |> Channels.join("#testchannel") |> Channels.channels()
     assert Enum.member?(channels, "#testchannel")
   end
 
   test "The channel name is downcased when joining" do
-    channels = Channels.init() |> Channels.join("#TestChannel") |> Channels.channels
+    channels = Channels.init() |> Channels.join("#TestChannel") |> Channels.channels()
     assert Enum.member?(channels, "#testchannel")
   end
 
   test "Joining the same channel twice is a noop" do
-    channels = Channels.init() |> Channels.join("#TestChannel") |> Channels.join("#testchannel") |> Channels.channels
+    channels = Channels.init() |> Channels.join("#TestChannel") |> Channels.join("#testchannel") |> Channels.channels()
     assert 1 == Enum.count(channels)
   end
 
   test "Parting a channel removes it from the tree of currently joined channels" do
-    tree = Channels.init() |> Channels.join("#testchannel")
+    tree = Channels.join(Channels.init(), "#testchannel")
     assert Enum.member?(Channels.channels(tree), "#testchannel")
     tree = Channels.part(tree, "#testchannel")
     refute Enum.member?(Channels.channels(tree), "#testchannel")
@@ -32,12 +32,14 @@ defmodule ExIRC.ChannelsTest do
   end
 
   test "Can set the topic for a channel" do
-    channels = Channels.init() |> Channels.join("#testchannel") |> Channels.set_topic("#testchannel", "Welcome to Test Channel!")
+    channels =
+      Channels.init() |> Channels.join("#testchannel") |> Channels.set_topic("#testchannel", "Welcome to Test Channel!")
+
     assert "Welcome to Test Channel!" == Channels.channel_topic(channels, "#testchannel")
   end
 
   test "Setting the topic for a channel we haven't joined returns :error" do
-    channels = Channels.init() |> Channels.set_topic("#testchannel", "Welcome to Test Channel!")
+    channels = Channels.set_topic(Channels.init(), "#testchannel", "Welcome to Test Channel!")
     assert {:error, :no_such_channel} == Channels.channel_topic(channels, "#testchannel")
   end
 
@@ -51,13 +53,13 @@ defmodule ExIRC.ChannelsTest do
   end
 
   test "Setting the channel type for a channel we haven't joined returns :error" do
-    channels = Channels.init() |> Channels.set_type("#testchannel", "@")
+    channels = Channels.set_type(Channels.init(), "#testchannel", "@")
     assert {:error, :no_such_channel} == Channels.channel_type(channels, "#testchannel")
   end
 
   test "Setting an invalid channel type raises CaseClauseError" do
-    assert_raise CaseClauseError, "no case clause matching: '!'", fn ->
-        Channels.init() |> Channels.join("#testchannel") |> Channels.set_type("#testchannel", "!")
+    assert_raise CaseClauseError, "no case clause matching: ~c\"!\"", fn ->
+      Channels.init() |> Channels.join("#testchannel") |> Channels.set_type("#testchannel", "!")
     end
   end
 
@@ -67,13 +69,27 @@ defmodule ExIRC.ChannelsTest do
   end
 
   test "Can join multiple users to a channel" do
-    channels = Channels.init() |> Channels.join("#testchannel") |> Channels.users_join("#testchannel", ["testnick", "anothernick"])
+    channels =
+      Channels.init()
+      |> Channels.join("#testchannel")
+      |> Channels.users_join("#testchannel", ["testnick", "anothernick"])
+
     assert Channels.channel_has_user?(channels, "#testchannel", "testnick")
     assert Channels.channel_has_user?(channels, "#testchannel", "anothernick")
   end
 
   test "Strips rank designations from nicks" do
-    channels = Channels.init() |> Channels.join("#testchannel") |> Channels.users_join("#testchannel", ["+testnick", "@anothernick", "&athirdnick", "%somanynicks", "~onemorenick"])
+    channels =
+      Channels.init()
+      |> Channels.join("#testchannel")
+      |> Channels.users_join("#testchannel", [
+        "+testnick",
+        "@anothernick",
+        "&athirdnick",
+        "%somanynicks",
+        "~onemorenick"
+      ])
+
     assert Channels.channel_has_user?(channels, "#testchannel", "testnick")
     assert Channels.channel_has_user?(channels, "#testchannel", "anothernick")
     assert Channels.channel_has_user?(channels, "#testchannel", "athirdnick")
@@ -82,21 +98,21 @@ defmodule ExIRC.ChannelsTest do
   end
 
   test "Joining a users to a channel we aren't in is a noop" do
-    channels = Channels.init() |> Channels.user_join("#testchannel", "testnick")
+    channels = Channels.user_join(Channels.init(), "#testchannel", "testnick")
     assert {:error, :no_such_channel} == Channels.channel_has_user?(channels, "#testchannel", "testnick")
-    channels = Channels.init() |> Channels.users_join("#testchannel", ["testnick", "anothernick"])
+    channels = Channels.users_join(Channels.init(), "#testchannel", ["testnick", "anothernick"])
     assert {:error, :no_such_channel} == Channels.channel_has_user?(channels, "#testchannel", "testnick")
   end
 
   test "Can part a user from a channel" do
     channels = Channels.init() |> Channels.join("#testchannel") |> Channels.user_join("#testchannel", "testnick")
     assert Channels.channel_has_user?(channels, "#testchannel", "testnick")
-    channels = channels |> Channels.user_part("#testchannel", "testnick")
+    channels = Channels.user_part(channels, "#testchannel", "testnick")
     refute Channels.channel_has_user?(channels, "#testchannel", "testnick")
   end
 
   test "Parting a user from a channel we aren't in is a noop" do
-    channels = Channels.init() |> Channels.user_part("#testchannel", "testnick")
+    channels = Channels.user_part(Channels.init(), "#testchannel", "testnick")
     assert {:error, :no_such_channel} == Channels.channel_has_user?(channels, "#testchannel", "testnick")
   end
 
@@ -108,19 +124,22 @@ defmodule ExIRC.ChannelsTest do
       |> Channels.join("#anotherchannel")
       |> Channels.user_join("#anotherchannel", "testnick")
       |> Channels.user_join("#anotherchannel", "secondnick")
+
     assert Channels.channel_has_user?(channels, "#testchannel", "testnick")
-    channels = channels |> Channels.user_quit("testnick")
+    channels = Channels.user_quit(channels, "testnick")
     refute Channels.channel_has_user?(channels, "#testchannel", "testnick")
     refute Channels.channel_has_user?(channels, "#anotherchannel", "testnick")
     assert Channels.channel_has_user?(channels, "#anotherchannel", "secondnick")
   end
 
   test "Can rename a user" do
-    channels = Channels.init() 
-                |> Channels.join("#testchannel") 
-                |> Channels.join("#anotherchan") 
-                |> Channels.user_join("#testchannel", "testnick")
-                |> Channels.user_join("#anotherchan", "testnick")
+    channels =
+      Channels.init()
+      |> Channels.join("#testchannel")
+      |> Channels.join("#anotherchan")
+      |> Channels.user_join("#testchannel", "testnick")
+      |> Channels.user_join("#anotherchan", "testnick")
+
     assert Channels.channel_has_user?(channels, "#testchannel", "testnick")
     assert Channels.channel_has_user?(channels, "#anotherchan", "testnick")
     channels = Channels.user_rename(channels, "testnick", "newnick")
@@ -137,16 +156,18 @@ defmodule ExIRC.ChannelsTest do
   end
 
   test "Can get the current set of channel data as a tuple of the channel name and it's data as a proplist" do
-    channels = Channels.init() 
-            |> Channels.join("#testchannel") 
-            |> Channels.set_type("#testchannel", "@")
-            |> Channels.set_topic("#testchannel", "Welcome to Test!")
-            |> Channels.join("#anotherchan") 
-            |> Channels.set_type("#anotherchan", "=")
-            |> Channels.set_topic("#anotherchan", "Welcome to Another Channel!")
-            |> Channels.user_join("#testchannel", "testnick")
-            |> Channels.user_join("#anotherchan", "testnick")
-            |> Channels.to_proplist
+    channels =
+      Channels.init()
+      |> Channels.join("#testchannel")
+      |> Channels.set_type("#testchannel", "@")
+      |> Channels.set_topic("#testchannel", "Welcome to Test!")
+      |> Channels.join("#anotherchan")
+      |> Channels.set_type("#anotherchan", "=")
+      |> Channels.set_topic("#anotherchan", "Welcome to Another Channel!")
+      |> Channels.user_join("#testchannel", "testnick")
+      |> Channels.user_join("#anotherchan", "testnick")
+      |> Channels.to_proplist()
+
     testchannel = {"#testchannel", [users: ["testnick"], topic: "Welcome to Test!", type: :secret]}
     anotherchan = {"#anotherchan", [users: ["testnick"], topic: "Welcome to Another Channel!", type: :public]}
     assert [testchannel, anotherchan] == channels

@@ -208,7 +208,7 @@ defmodule ExIRC.Commands do
   def ctcp!(cmd), do: command!([@ctcp_delimiter, cmd, @ctcp_delimiter])
 
   def ctcp!(cmd, args) do
-    expanded = args |> Enum.intersperse(~c" ")
+    expanded = Enum.intersperse(args, ~c" ")
     command!([@ctcp_delimiter, cmd, expanded, @ctcp_delimiter])
   end
 
@@ -260,8 +260,7 @@ defmodule ExIRC.Commands do
   Send a `/me <msg>` CTCP command to t
   """
   def me!(channel, msg),
-    do:
-      command!([~c"PRIVMSG ", channel, ~c" :", @ctcp_delimiter, ~c"ACTION ", msg, @ctcp_delimiter])
+    do: command!([~c"PRIVMSG ", channel, ~c" :", @ctcp_delimiter, ~c"ACTION ", msg, @ctcp_delimiter])
 
   @doc """
   Sends a command to the server to get the list of names back
@@ -293,7 +292,7 @@ defmodule ExIRC.Commands do
   Send kick command to server
   """
   def kick!(channel, nick, message \\ "") do
-    case "#{message}" |> String.length() do
+    case String.length("#{message}") do
       0 -> command!([~c"KICK ", channel, ~c" ", nick])
       _ -> command!([~c"KICK ", channel, ~c" ", nick, ~c" ", message])
     end
@@ -305,7 +304,7 @@ defmodule ExIRC.Commands do
   MODE <channel> <flags> [<args>]
   """
   def mode!(channel_or_nick, flags, args \\ "") do
-    case "#{args}" |> String.length() do
+    case String.length("#{args}") do
       0 -> command!([~c"MODE ", channel_or_nick, ~c" ", flags])
       _ -> command!([~c"MODE ", channel_or_nick, ~c" ", flags, ~c" ", args])
     end

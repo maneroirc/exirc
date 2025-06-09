@@ -27,19 +27,16 @@ defmodule ExIRC.Mixfile do
   defp package do
     [
       files: ["lib", "mix.exs", "README.md", "LICENSE", "CHANGELOG.md"],
-      maintainers: ["Paul Schoenfelder", "Théophile Choutri"],
-      licenses: ["MIT"],
-      links: %{
-        "GitHub" => "https://github.com/bitwalker/exirc",
-        "Home Page" => "http://bitwalker.org/exirc"
-      }
+      maintainers: ["Graham McIntire", "Paul Schoenfelder", "Théophile Choutri"],
+      licenses: ["MIT"]
     ]
   end
 
   defp deps do
     [
       {:ex_doc, "~> 0.22", only: :dev},
-      {:excoveralls, "~> 0.13", only: :test}
+      {:excoveralls, "~> 0.13", only: :test},
+      {:styler, "~> 1.1", only: [:dev, :test], runtime: false}
     ]
   end
 end
