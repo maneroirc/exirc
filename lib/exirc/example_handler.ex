@@ -49,9 +49,22 @@ defmodule ExampleHandler do
     {:noreply, nil}
   end
 
-  def handle_info(:disconnected, _state) do
-    debug("Disconnected from server")
-    {:noreply, nil}
+  def handle_info(:disconnected, state) do
+    debug("Disconnected from server. Attempting to reconnect...")
+    
+    # Schedule a reconnection attempt after 5 seconds
+    Process.send_after(self(), :reconnect, 5000)
+    
+    {:noreply, state}
+  end
+
+  def handle_info(:reconnect, state) do
+    debug("Reconnecting to server...")
+    
+    # Attempt to reconnect
+    ExIRC.Client.connect!(state.client, state.host, state.port)
+    
+    {:noreply, state}
   end
 
   def handle_info({:joined, channel}, _state) do
